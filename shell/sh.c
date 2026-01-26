@@ -10,7 +10,28 @@
   @param args Null terminated list of arguments (including program).
   @return Always returns 1, to continue execution.
  */
-int sh_launch(char **args) { /* your code here */ }
+int sh_launch(char **args) 
+{
+  int pid = fork();
+  if (pid < 0) {
+    printf("error: fork() failed\n");
+    return 1;
+  }
+  else if (pid == 0) {
+    // Child
+    int status = execvp(args[0], args);
+    if (status < 0) {
+      printf("error: command not found\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+  else {
+    // Parent
+    waitpid(pid, NULL, 0);
+  }
+
+  return 1;
+}
 
 /**
    @brief Execute shell built-in or launch program.
