@@ -14,14 +14,14 @@ int sh_launch(char **args)
 {
   int pid = fork();
   if (pid < 0) {
-    printf("error: fork() failed\n");
+    perror("fork");
     return 1;
   }
   else if (pid == 0) {
     // Child
     int status = execvp(args[0], args);
     if (status < 0) {
-      printf("error: command not found\n");
+      perror(args[0]);
       exit(EXIT_FAILURE);
     }
   }
