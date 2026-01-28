@@ -1,9 +1,19 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <string.h>
+#include <assert.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <errno.h>
+
+struct complex_args {
+  int redirect_output;
+  char *filename;
+  char **cleaned_args;
+};
 
 /**
   @brief Launch a program and wait for it to terminate.
@@ -15,7 +25,6 @@ int sh_launch(char **args)
   int pid = fork();
   if (pid < 0) {
     perror("fork");
-    return 1;
   }
   else if (pid == 0) {
     // Child
@@ -47,6 +56,22 @@ int sh_execute(char **args)
   }
 
   return sh_launch(args);   // launch
+}
+
+/**
+ * @brief Check for redirection and divide args accordingly.
+ * @param args Null terminated list of arguments.
+ * @return 
+ */
+struct complex_args handle_redirection(char **args) {
+  struct complex_args result;
+  char *token;
+
+  for (int i = 0; args[i] != NULL; i++) {
+    token = args[i];
+  }
+
+  return result;
 }
 
 /**
