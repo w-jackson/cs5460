@@ -9,8 +9,17 @@
 #include <sys/wait.h>
 #include <errno.h>
 
+#define SH_TOK_BUFSIZE 64
+#define SH_TOK_DELIM " \t\r\n\a"
+
+enum redirect_type {
+  OUTPUT,
+  INPUT,
+  NONE
+};
+
 struct complex_args {
-  int redirect_output;
+  enum redirect_type type;
   char *filename;
   char **cleaned_args;
 };
@@ -20,7 +29,7 @@ struct complex_args {
   @param args Null terminated list of arguments (including program).
   @return Always returns 1, to continue execution.
  */
-int sh_launch(char **args) 
+int sh_launch(struct complex_args complex_args) 
 {
   int pid = fork();
   if (pid < 0) {
@@ -28,9 +37,20 @@ int sh_launch(char **args)
   }
   else if (pid == 0) {
     // Child
-    int status = execvp(args[0], args);
-    if (status < 0) {
-      perror(args[0]);
+    if (complex_args.type == OUTPUT) 
+    {
+      close(1);
+      open(complex_args.filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    } else if (complex_args.type == INPUT) 
+    {
+      close(0);
+      open(complex_args.filename, O_RDONLY);
+    }
+
+    int status = execvp(complex_args.cleaned_args[0], complex_args.cleaned_args);
+    if (status < 0) 
+    {
+      perror(complex_args.cleaned_args[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -43,35 +63,54 @@ int sh_launch(char **args)
 }
 
 /**
+ * @brief Check for redirection and divide args accordingly.
+ * @param args Null terminated list of arguments.
+ * @return 
+ */
+struct complex_args handle_redirection(char **args) 
+{
+  struct complex_args result;
+  result.type = NONE;
+  result.filename = "";
+  result.cleaned_args = args;
+
+  char *token;
+  for (int i = 0; args[i] != NULL; i++) 
+  {
+    token = args[i];
+
+    if (strcmp(token, ">") == 0) 
+    {
+      result.type = OUTPUT;
+      result.filename = args[i+1];
+      args[i] = NULL;
+      break;
+    } else if (strcmp(token, "<") == 0)
+    {
+      result.type = INPUT;
+      result.filename = args[i+1];
+      args[i] = NULL;
+      break;
+    }
+  }
+
+  return result;
+}
+
+/**
    @brief Execute shell built-in or launch program.
    @param args Null terminated list of arguments.
    @return 1 if the shell should continue running, 0 if it should terminate
  */
 int sh_execute(char **args)
 {
-  int i;
-
   if (args[0] == NULL) {
     return 1;  // An empty command was entered.
   }
 
-  return sh_launch(args);   // launch
-}
+  struct complex_args cleaned_args = handle_redirection(args);
 
-/**
- * @brief Check for redirection and divide args accordingly.
- * @param args Null terminated list of arguments.
- * @return 
- */
-struct complex_args handle_redirection(char **args) {
-  struct complex_args result;
-  char *token;
-
-  for (int i = 0; args[i] != NULL; i++) {
-    token = args[i];
-  }
-
-  return result;
+  return sh_launch(cleaned_args);   // launch
 }
 
 /**
@@ -94,8 +133,6 @@ char *sh_read_line(void)
   return line;
 }
 
-#define SH_TOK_BUFSIZE 64
-#define SH_TOK_DELIM " \t\r\n\a"
 /**
    @brief Split a line into tokens (very naively).
    @param line The line.
