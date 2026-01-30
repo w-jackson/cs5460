@@ -4,3 +4,6 @@
 *.o
 *.out
 utsh
+
+# Test files
+test.txt

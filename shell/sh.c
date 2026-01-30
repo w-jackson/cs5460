@@ -24,6 +24,23 @@ struct complex_args {
   char **cleaned_args;
 };
 
+int verify_fd(int fd, char *direction) 
+{
+  if (fd < 0)
+  {
+    perror("utsh: open");
+    exit(EXIT_FAILURE);
+  }
+  else if (fd >= 3)
+  {
+    close(fd);
+    fprintf(stderr, "utsh: error redirecting %s\n", direction);
+    exit(EXIT_FAILURE);
+  }
+
+  return 1;
+}
+
 /**
   @brief Launch a program and wait for it to terminate.
   @param args Null terminated list of arguments (including program).
@@ -33,41 +50,30 @@ int sh_launch(struct complex_args complex_args)
 {
   int pid = fork();
   if (pid < 0) {
-    perror("fork");
+    perror("utsh: fork");
   }
   else if (pid == 0) {
     // Child
     if (complex_args.type == OUTPUT) 
     {
+      if (complex_args.filename == NULL) 
+      {
+        fprintf(stderr, "utsh: missing file to redirect to\n");
+        exit(EXIT_FAILURE);
+      }
       close(1);
       int fd = open(complex_args.filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-      if (fd < 0)
-      {
-        perror("open");
-        exit(EXIT_FAILURE)
-      }
-      else if (fd >= 3)
-      {
-        close(fd);
-        fprintf(stderr, "utsh: Error redirecting input.\n");
-        exit(EXIT_FAILURE)
-      }
+      verify_fd(fd, "output");
     } else if (complex_args.type == INPUT) 
     {
+      if (complex_args.filename == NULL) 
+      {
+        fprintf(stderr, "utsh: missing file to redirect from\n");
+        exit(EXIT_FAILURE);
+      }
       close(0);
       int fd = open(complex_args.filename, O_RDONLY);
-      if (fd < 0)
-      {
-        perror("open");
-        exit(EXIT_FAILURE)
-      }
-      else if (fd >= 3)
-      {
-        close(fd);
-        fprintf(stderr, "utsh: Error redirecting input.\n");
-        exit(EXIT_FAILURE)
-      }
-      
+      verify_fd(fd, "input");
     }
 
     int status = execvp(complex_args.cleaned_args[0], complex_args.cleaned_args);
@@ -94,24 +100,24 @@ struct complex_args handle_redirection(char **args)
 {
   struct complex_args result;
   result.type = NONE;
-  result.filename = "";
+  result.filename = NULL;
   result.cleaned_args = args;
 
   char *token;
   for (int i = 0; args[i] != NULL; i++) 
   {
     token = args[i];
-
+    
     if (strcmp(token, ">") == 0) 
     {
       result.type = OUTPUT;
-      result.filename = args[i+1];
+      if (args[i+1] != NULL) { result.filename = args[i+1]; }
       args[i] = NULL;
       break;
     } else if (strcmp(token, "<") == 0)
     {
       result.type = INPUT;
-      result.filename = args[i+1];
+      if (args[i+1] != NULL) { result.filename = args[i+1]; }
       args[i] = NULL;
       break;
     }
@@ -149,7 +155,7 @@ char *sh_read_line(void)
     if (feof(stdin)) {
       exit(EXIT_SUCCESS);  // We recieved an EOF
     } else {
-      perror("sh: readline");
+      perror("utsh: readline");
       exit(EXIT_FAILURE);
     }
   }
@@ -168,7 +174,7 @@ char **sh_split_line(char *line)
   char *token, **tokens_backup;
 
   if (!tokens) {
-    fprintf(stderr, "sh: allocation error\n");
+    fprintf(stderr, "utsh: allocation error\n");
     exit(EXIT_FAILURE);
   }
 
@@ -183,7 +189,7 @@ char **sh_split_line(char *line)
       tokens = realloc(tokens, bufsize * sizeof(char *));
       if (!tokens) {
         free(tokens_backup);
-        fprintf(stderr, "sh: allocation error\n");
+        fprintf(stderr, "utsh: allocation error\n");
         exit(EXIT_FAILURE);
       }
     }

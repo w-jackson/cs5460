@@ -34,8 +34,33 @@
 
 ### Explanation
 
+1. Why close(1); open(“x.txt”, …) causes standard output to go to the file
+2. Why this works without calling dup() or dup2()
+3. What would happen if close(1) were omitted
+4. Why redirection must not be performed in the parent process
+
 ### Testing
 
+1. Output redirection creating a new file
+    - Command: ``` ```
+    - Expected: ``` ```
+    - Actual: ``` ```
+2. Output redirection overwriting an existing file
+    - Command: ``` ```
+    - Expected: ``` ```
+    - Actual: ``` ```
+3. Input redirection from a file
+    - Command: ``` ```
+    - Expected: ``` ```
+    - Actual: ``` ```
+4. Redirection with command arguments
+    - Command: ``` ```
+    - Expected: ``` ```
+    - Actual: ``` ```
+5. Failure cases (e.g., redirecting input from a missing file)
+    - Command: ``` ```
+    - Expected: ``` ```
+    - Actual: ``` ```
 
 ## Task 3
 
