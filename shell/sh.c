@@ -40,11 +40,34 @@ int sh_launch(struct complex_args complex_args)
     if (complex_args.type == OUTPUT) 
     {
       close(1);
-      open(complex_args.filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int fd = open(complex_args.filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if (fd < 0)
+      {
+        perror("open");
+        exit(EXIT_FAILURE)
+      }
+      else if (fd >= 3)
+      {
+        close(fd);
+        fprintf(stderr, "utsh: Error redirecting input.\n");
+        exit(EXIT_FAILURE)
+      }
     } else if (complex_args.type == INPUT) 
     {
       close(0);
-      open(complex_args.filename, O_RDONLY);
+      int fd = open(complex_args.filename, O_RDONLY);
+      if (fd < 0)
+      {
+        perror("open");
+        exit(EXIT_FAILURE)
+      }
+      else if (fd >= 3)
+      {
+        close(fd);
+        fprintf(stderr, "utsh: Error redirecting input.\n");
+        exit(EXIT_FAILURE)
+      }
+      
     }
 
     int status = execvp(complex_args.cleaned_args[0], complex_args.cleaned_args);
