@@ -12,20 +12,14 @@
 #define SH_TOK_BUFSIZE 64
 #define SH_TOK_DELIM " \t\r\n\a"
 
-enum redirect_type {
-  OUTPUT,
-  INPUT,
-  NONE
-};
-
 struct pipe_args {
   int num_commands;
   char ***split_commands;
 };
 
 struct complex_args {
-  enum redirect_type type;
-  char *filename;
+  char *input_filename;
+  char *output_filename;
   char **cleaned_args;
 };
 
@@ -59,25 +53,16 @@ int sh_launch(struct complex_args complex_args)
   }
   else if (pid == 0) {
     // Child
-    if (complex_args.type == OUTPUT) 
+    if (complex_args.output_filename != NULL) 
     {
-      if (complex_args.filename == NULL) 
-      {
-        fprintf(stderr, "utsh: missing file to redirect to\n");
-        exit(EXIT_FAILURE);
-      }
       close(1);
-      int fd = open(complex_args.filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int fd = open(complex_args.output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
       verify_fd(fd, "output");
-    } else if (complex_args.type == INPUT) 
+    }
+    if (complex_args.input_filename != NULL) 
     {
-      if (complex_args.filename == NULL) 
-      {
-        fprintf(stderr, "utsh: missing file to redirect from\n");
-        exit(EXIT_FAILURE);
-      }
       close(0);
-      int fd = open(complex_args.filename, O_RDONLY);
+      int fd = open(complex_args.input_filename, O_RDONLY);
       verify_fd(fd, "input");
     }
 
@@ -170,8 +155,8 @@ int sh_launch_with_pipes(struct pipe_args pipe_info)
 struct complex_args handle_redirection(char **args) 
 {
   struct complex_args result;
-  result.type = NONE;
-  result.filename = NULL;
+  result.input_filename = NULL;
+  result.output_filename = NULL;
   result.cleaned_args = args;
 
   char *token;
@@ -179,18 +164,14 @@ struct complex_args handle_redirection(char **args)
   {
     token = args[i];
     
-    if (strcmp(token, ">") == 0) 
+    if (strcmp(token, "<") == 0) 
     {
-      result.type = OUTPUT;
-      if (args[i+1] != NULL) { result.filename = args[i+1]; }
+      if (args[i+1] != NULL) { result.input_filename = args[i+1]; }
       args[i] = NULL;
-      break;
-    } else if (strcmp(token, "<") == 0)
+    } else if (strcmp(token, ">") == 0)
     {
-      result.type = INPUT;
-      if (args[i+1] != NULL) { result.filename = args[i+1]; }
+      if (args[i+1] != NULL) { result.output_filename = args[i+1]; }
       args[i] = NULL;
-      break;
     }
   }
 
@@ -270,7 +251,13 @@ int sh_execute(char **args)
     return sh_launch(cleaned_args);   // launch
   }
 
-  return sh_launch_with_pipes(pipe_args);
+  int status = sh_launch_with_pipes(pipe_args);
+  for (int i = 0; i < pipe_args.num_commands; i++) {
+    free(pipe_args.split_commands[i]);
+  }
+  free(pipe_args.split_commands);
+
+  return status;
 }
 
 /**
