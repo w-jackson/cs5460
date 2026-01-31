@@ -7,3 +7,6 @@ utsh
 
 # Test files
 test.txt
+
+# Assignment archives
+*.zip
