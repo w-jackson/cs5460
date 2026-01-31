@@ -96,6 +96,72 @@ int sh_launch(struct complex_args complex_args)
   return 1;
 }
 
+int sh_launch_with_pipes(struct pipe_args pipe_info)
+{
+  int num_commands = pipe_info.num_commands;
+  int num_pipes = num_commands - 1;
+  char ***commands = pipe_info.split_commands;
+  
+  int pipefds[num_pipes][2];
+  for (int i = 0; i < num_pipes; i++)
+  {
+    if (pipe(pipefds[i]) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+  }
+
+  for (int i = 0; i < num_commands; i++) {
+    int pid = fork();
+    
+    if (pid < 0) {
+      perror("utsh: fork");
+    }
+    else if (pid == 0) {
+      // Child
+      
+      // Read end
+      if (i > 0) {
+        close(0);
+        dup(pipefds[i-1][0]);
+      }
+
+      // Write end
+      if (i < num_commands - 1) {
+        close(1);
+        dup(pipefds[i][1]);
+      }
+      
+      // Close all pipes in child
+      for (int j = 0; j < num_pipes; j++)
+      {
+        close(pipefds[j][0]);
+        close(pipefds[j][1]);
+      }
+      
+      int status = execvp(commands[i][0], commands[i]);
+      if (status < 0) 
+      {
+        perror(commands[i][0]);
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+  
+  // Close all pipes in parent
+  for (int i = 0; i < num_pipes; i++)
+  {
+    close(pipefds[i][0]);
+    close(pipefds[i][1]);
+  }
+  
+  for (int i = 0; i < num_commands; i++) {
+    waitpid(-1, NULL, 0);
+  }
+
+  return 1;
+}
+
 /**
  * @brief Check for redirection and divide args accordingly.
  * @param args Null terminated list of arguments.
@@ -157,7 +223,7 @@ struct pipe_args handle_pipes(char **args)
   int start_i = 0;
   char *token;
   int i = 0;
-  while(1)
+  while (1)
   {
     token = args[i];
 
@@ -196,10 +262,15 @@ int sh_execute(char **args)
     return 1;  // An empty command was entered.
   }
 
-  struct pipe_args split_args = handle_pipes(args);
-  struct complex_args cleaned_args = handle_redirection(args);
+  struct pipe_args pipe_args = handle_pipes(args);
 
-  return sh_launch(cleaned_args);   // launch
+  if (pipe_args.num_commands == 1) 
+  {
+    struct complex_args cleaned_args = handle_redirection(args);
+    return sh_launch(cleaned_args);   // launch
+  }
+
+  return sh_launch_with_pipes(pipe_args);
 }
 
 /**
