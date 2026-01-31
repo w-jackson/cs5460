@@ -43,24 +43,24 @@
 
 1. Output redirection creating a new file
     - Command: ``` ```
-    - Expected: ``` ```
-    - Actual: ``` ```
+    - Expected behavior: 
+    - Actual behavior: 
 2. Output redirection overwriting an existing file
     - Command: ``` ```
-    - Expected: ``` ```
-    - Actual: ``` ```
+    - Expected behavior: 
+    - Actual behavior: 
 3. Input redirection from a file
     - Command: ``` ```
-    - Expected: ``` ```
-    - Actual: ``` ```
+    - Expected behavior: 
+    - Actual behavior: 
 4. Redirection with command arguments
     - Command: ``` ```
     - Expected: ``` ```
     - Actual: ``` ```
 5. Failure cases (e.g., redirecting input from a missing file)
     - Command: ``` ```
-    - Expected: ``` ```
-    - Actual: ``` ```
+    - Expected behavior: 
+    - Actual behavior: 
 
 ## Task 3
 

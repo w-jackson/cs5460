@@ -18,6 +18,11 @@ enum redirect_type {
   NONE
 };
 
+struct pipe_args {
+  int num_commands;
+  char ***split_commands;
+};
+
 struct complex_args {
   enum redirect_type type;
   char *filename;
@@ -126,6 +131,60 @@ struct complex_args handle_redirection(char **args)
   return result;
 }
 
+int count_commands(char **args) 
+{
+  int count = 0;
+  for (int i = 0; args[i] != NULL; i++)
+  {
+    if (strcmp(args[i], "|") == 0)
+    {
+      count++;
+    }
+  }
+
+  return ++count; // There is one more command than there are pipes.
+}
+
+struct pipe_args handle_pipes(char **args) 
+{
+  int count = count_commands(args);
+
+  struct pipe_args result;
+  result.num_commands = count;
+
+  char ***split_commands = malloc((count + 1) * sizeof(char**));
+  int curr_command_i = 0;
+  int start_i = 0;
+  char *token;
+  int i = 0;
+  while(1)
+  {
+    token = args[i];
+
+    if (token == NULL || strcmp(token, "|") == 0)
+    {
+      int num_tokens = i - start_i;
+      char **curr_command = malloc((num_tokens + 1) * sizeof(char*));
+      for (int j = 0; j < num_tokens; j++)
+      {
+        curr_command[j] = args[start_i + j];
+      }
+      curr_command[num_tokens] = NULL;
+      split_commands[curr_command_i] = curr_command;
+      curr_command_i++;
+      start_i = i+1;
+    }
+
+    if (token == NULL) break;
+    i++;
+  }
+
+  split_commands[curr_command_i] = NULL;
+  result.split_commands = split_commands;
+
+  return result;
+}
+
 /**
    @brief Execute shell built-in or launch program.
    @param args Null terminated list of arguments.
@@ -137,6 +196,7 @@ int sh_execute(char **args)
     return 1;  // An empty command was entered.
   }
 
+  struct pipe_args split_args = handle_pipes(args);
   struct complex_args cleaned_args = handle_redirection(args);
 
   return sh_launch(cleaned_args);   // launch
