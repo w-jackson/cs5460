@@ -12,17 +12,29 @@
 #define SH_TOK_BUFSIZE 64
 #define SH_TOK_DELIM " \t\r\n\a"
 
+/**
+ * @brief Info about a command split by pipes.
+ */
 struct pipe_args {
   int num_commands;
   char ***split_commands;
 };
 
-struct complex_args {
+/**
+ * @brief Info about a command and it's redirects.
+ */
+struct redirect_args {
   char *input_filename;
   char *output_filename;
   char **cleaned_args;
 };
 
+/**
+ * @brief Ensures thats file being redirected to/from was correctly opened.
+ * @param fd The fd to be tested.
+ * @param direction The redirection direction.
+ * @return 1 unless the process is exited on failure.
+ */
 int verify_fd(int fd, char *direction) 
 {
   if (fd < 0)
@@ -42,10 +54,10 @@ int verify_fd(int fd, char *direction)
 
 /**
   @brief Launch a program and wait for it to terminate.
-  @param args Null terminated list of arguments (including program).
+  @param redirect_args Redirect filenames and a null terminated list of arguments (including program).
   @return Always returns 1, to continue execution.
  */
-int sh_launch(struct complex_args complex_args) 
+int sh_launch(struct redirect_args redirect_args) 
 {
   int pid = fork();
   if (pid < 0) {
@@ -53,23 +65,23 @@ int sh_launch(struct complex_args complex_args)
   }
   else if (pid == 0) {
     // Child
-    if (complex_args.output_filename != NULL) 
+    if (redirect_args.output_filename != NULL) 
     {
       close(1);
-      int fd = open(complex_args.output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int fd = open(redirect_args.output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
       verify_fd(fd, "output");
     }
-    if (complex_args.input_filename != NULL) 
+    if (redirect_args.input_filename != NULL) 
     {
       close(0);
-      int fd = open(complex_args.input_filename, O_RDONLY);
+      int fd = open(redirect_args.input_filename, O_RDONLY);
       verify_fd(fd, "input");
     }
 
-    int status = execvp(complex_args.cleaned_args[0], complex_args.cleaned_args);
+    int status = execvp(redirect_args.cleaned_args[0], redirect_args.cleaned_args);
     if (status < 0) 
     {
-      perror(complex_args.cleaned_args[0]);
+      perror(redirect_args.cleaned_args[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -81,11 +93,16 @@ int sh_launch(struct complex_args complex_args)
   return 1;
 }
 
-int sh_launch_with_pipes(struct pipe_args pipe_info)
+/**
+ * @brief Launch multiple programs connected by pipes and wait for them to terminate.
+ * @param pipe_args Number of commands and list of null terminated lists of commands.
+ * @return Always returns 1, to continue execution.
+ */
+int sh_launch_with_pipes(struct pipe_args pipe_args)
 {
-  int num_commands = pipe_info.num_commands;
+  int num_commands = pipe_args.num_commands;
   int num_pipes = num_commands - 1;
-  char ***commands = pipe_info.split_commands;
+  char ***commands = pipe_args.split_commands;
   
   int pipefds[num_pipes][2];
   for (int i = 0; i < num_pipes; i++)
@@ -132,6 +149,7 @@ int sh_launch_with_pipes(struct pipe_args pipe_info)
       }
     }
   }
+  // Parent
   
   // Close all pipes in parent
   for (int i = 0; i < num_pipes; i++)
@@ -148,13 +166,13 @@ int sh_launch_with_pipes(struct pipe_args pipe_info)
 }
 
 /**
- * @brief Check for redirection and divide args accordingly.
+ * @brief Pull out redirect filenames and clean args list.
  * @param args Null terminated list of arguments.
- * @return 
+ * @return Redirect filenames and a cleaned list of command args.
  */
-struct complex_args handle_redirection(char **args) 
+struct redirect_args handle_redirection(char **args) 
 {
-  struct complex_args result;
+  struct redirect_args result;
   result.input_filename = NULL;
   result.output_filename = NULL;
   result.cleaned_args = args;
@@ -178,6 +196,11 @@ struct complex_args handle_redirection(char **args)
   return result;
 }
 
+/**
+ * @brief Count the number of commands split by pipes.
+ * @param args Null terminated list of arguments.
+ * @return Command count.
+ */
 int count_commands(char **args) 
 {
   int count = 0;
@@ -192,6 +215,11 @@ int count_commands(char **args)
   return ++count; // There is one more command than there are pipes.
 }
 
+/**
+ * @brief Count and separate the number of commands split by pipes.
+ * @param args Null terminated list of arguments.
+ * @return The number of commands and a split up list of those commands.
+ */
 struct pipe_args handle_pipes(char **args) 
 {
   int count = count_commands(args);
@@ -267,7 +295,7 @@ int sh_execute(char **args)
 
   if (pipe_args.num_commands == 1) 
   {
-    struct complex_args cleaned_args = handle_redirection(args);
+    struct redirect_args cleaned_args = handle_redirection(args);
     return sh_launch(cleaned_args);   // launch
   }
 
