@@ -243,6 +243,26 @@ int sh_execute(char **args)
     return 1;  // An empty command was entered.
   }
 
+  // Handle cd command
+  if (strcmp(args[0], "cd") == 0)
+  {
+    if (args[1] == NULL) 
+    {
+      fprintf(stderr, "utsh: no directory provided\n");
+      return 1;
+    }
+    else 
+    {
+      int status = chdir(args[1]);
+      if (status < 0) 
+      {
+        perror("utsh: cd");
+      }
+    }
+    
+    return 1;
+  }
+
   struct pipe_args pipe_args = handle_pipes(args);
 
   if (pipe_args.num_commands == 1) 
