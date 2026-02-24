@@ -1,9 +1,13 @@
+# Ignore all then unignore directories; and files with extensions
+*
+!/**/
+!*.*
+
 .vscode/
 
 # Binaries 
 *.o
 *.out
-utsh
 
 # Test files
 test.txt

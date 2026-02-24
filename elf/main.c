@@ -226,10 +226,10 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < elf.e_phnum; ++i) {
         if (phs[i].p_type != PT_LOAD) continue;
         if (phs[i].p_vaddr < min_vaddr){
-            // TO DO...
+            min_vaddr = phs[i].p_vaddr;
         }
         if (phs[i].p_vaddr + phs[i].p_memsz > max_vaddr){
-            // TO DO...
+            max_vaddr = phs[i].p_vaddr + phs[i].p_memsz;
         }
     }
 
@@ -247,17 +247,20 @@ int main(int argc, char* argv[]) {
         fread(seg, 1, phs[i].p_filesz, f);
 
         if (phs[i].p_memsz > phs[i].p_filesz) {
-            // TO DO...
+            void *file_end = seg + phs[i].p_filesz;
+            memset(file_end, 0, phs[i].p_memsz - phs[i].p_filesz);
         }
     }
     free(phs);
 
-    // if (entry_point) {
-            // add = entry_point;
-            // ret = add(1, 2);
-            // printf("add:%d\n", ret);
-    // }
-    // return 0; 
+    uintptr_t entry_off = elf.e_entry - min_vaddr;
+    void *entry_point = (uint8_t *)load_base + entry_off;
+    if (entry_point) {
+            add = entry_point;
+            ret = add(1, 2);
+            printf("add:%d\n", ret);
+    }
+    return 0; 
 //     // ########################################################### 
 //         // PERFORM RELOCATION BELOW (NEEDED FOR elf1.c)
 //         // Below sections can be commented out for Part 1, as no relocations are applied 
