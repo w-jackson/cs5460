@@ -253,74 +253,91 @@ int main(int argc, char* argv[]) {
     }
     free(phs);
 
-    uintptr_t entry_off = elf.e_entry - min_vaddr;
-    void *entry_point = (uint8_t *)load_base + entry_off;
-    if (entry_point) {
-            add = entry_point;
-            ret = add(1, 2);
-            printf("add:%d\n", ret);
+    // uintptr_t entry_off = elf.e_entry - min_vaddr;
+    // void *entry_point = (uint8_t *)load_base + entry_off;
+    // if (entry_point) {
+    //         add = entry_point;
+    //         ret = add(1, 2);
+    //         printf("add:%d\n", ret);
+    // }
+    // return 0; 
+    // ########################################################### 
+        // PERFORM RELOCATION BELOW (NEEDED FOR elf1.c)
+        // Below sections can be commented out for Part 1, as no relocations are applied 
+    // ###########################################################
+
+    if (elf.e_shentsize != sizeof(Elf64_Shdr)) {
+        ABORT("Unexpected SHDR size\n");
     }
+
+    Elf64_Shdr *shs =
+        load_multiple(f, elf.e_shoff, elf.e_shnum * sizeof(Elf64_Shdr), sizeof(Elf64_Shdr), NULL);
+
+    size_t relnum = 0, num_syms = 0, relanum = 0;
+    Elf64_Rel *rels = NULL;
+    Elf64_Sym *syms = NULL;
+    Elf64_Rela *relas = NULL;
+    char *strtab = NULL;
+    bool string_table = false;
+    int sh_link = 0;
+
+    for (int i = 0; i < elf.e_shnum; i++) {
+        // Loads the ELF section headers and extracts relocation, symbol table, and string table sections
+        Elf64_Shdr *sh = shs + i;
+        switch (sh->sh_type) {
+            case SHT_REL:
+                rels = load_multiple(f, sh->sh_offset, sh->sh_size, sh->sh_entsize, &relnum);
+                break;
+            case SHT_RELA:
+                relas = load_multiple(f, sh->sh_offset, sh->sh_size, sh->sh_entsize, &relanum);
+                break;
+            case SHT_SYMTAB:
+                syms = load_multiple(f, sh->sh_offset, sh->sh_size, sh->sh_entsize, &num_syms);
+                sh_link = sh->sh_link;
+                break;
+            case SHT_STRTAB:
+                if (i == sh_link) {
+                    strtab = load_multiple(f, sh->sh_offset, sh->sh_size, 1, NULL);
+                    string_table = true;
+                }
+                break;
+        }
+    }
+    free(shs);
+
+
+    uint64_t delta = (uint64_t)load_base - min_vaddr;
+
+    if (relas) {
+        for (size_t j = 0; j < relanum; ++j) {
+            int type = ELF64_R_TYPE(relas[j].r_info);
+            int sym_i = ELF64_R_SYM(relas[j].r_info);
+            if (type == R_X86_64_RELATIVE) {
+                // Apply relocations
+                uint64_t *va = (uint64_t *)((uint8_t *)load_base + (relas[j].r_offset - min_vaddr));
+                int64_t addend = relas[j].r_addend;
+                int64_t new = addend + delta;
+                *va = new;
+            }
+        }
+        free(relas);
+    }
+
+    fclose(f);
+
+    LOG("Loaded binary\n");
+
+    // Call Funtion, add or linear_transform
+    // Example:
+    if (strcmp(funcname, "add") == 0) {
+        add = get_sm(syms, strtab, num_syms, funcname, min_vaddr);
+        ret = add(1, 2);
+        printf("add:%d\n", ret);
+    } else if (strcmp(funcname, "linear_transform") == 0) {
+        linear_transform = get_sm(syms, strtab, num_syms, funcname, min_vaddr);
+        ret = linear_transform(4);
+        printf("linear_transform:%d\n", ret);
+    }
+
     return 0; 
-//     // ########################################################### 
-//         // PERFORM RELOCATION BELOW (NEEDED FOR elf1.c)
-//         // Below sections can be commented out for Part 1, as no relocations are applied 
-//     // ###########################################################
-
-//     if (elf.e_shentsize != sizeof(Elf64_Shdr)) {
-//         ABORT("Unexpected SHDR size\n");
-//     }
-
-//     Elf64_Shdr *shs =
-//         load_multiple(f, elf.e_shoff, elf.e_shnum * sizeof(Elf64_Shdr), sizeof(Elf64_Shdr), NULL);
-
-//     size_t relnum = 0, num_syms = 0, relanum = 0;
-//     Elf64_Rel *rels = NULL;
-//     Elf64_Sym *syms = NULL;
-//     Elf64_Rela *relas = NULL;
-//     char *strtab = NULL;
-//     bool string_table = false;
-
-//     for (int i = 0; i < elf.e_shnum; i++) {
-//         // Loads the ELF section headers and extracts relocation, symbol table, and string table sections
-//         Elf64_Shdr *sh = shs + i;
-//         switch (sh->sh_type) {
-//             case SHT_REL:
-//                 // TO DO...
-//             case SHT_SYMTAB:
-//                 // TO DO...
-//             case SHT_STRTAB:
-//                 // TO DO...
-//   }
-//     }
-//     free(shs);
-
-
-//     uint64_t delta = (uint64_t)load_base - min_vaddr;
-
-//     if (relas) {
-//         for (size_t j = 0; j < relanum; ++j) {
-//             if (type == R_X86_64_RELATIVE) {
-//                 // Apply relocations
-//             }
-//         }
-//         free(relas);
-//     }
-
-//     fclose(f);
-
-//     LOG("Loaded binary\n");
-
-//     // Call Funtion, add or linear_transform
-//     // Example:
-//     // if (strcmp(funcname, "add") == 0) {
-//     //     add = get_sm(syms, strtab, num_syms, funcname, min_vaddr);
-//     //     ret = add(1, 2);
-//     // } else if (strcmp(funcname, "linear_transform") == 0) {
-//     //     linear_transform = get_sm(syms, strtab, num_syms, funcname, min_vaddr);
-//     //     ret = linear_transform(4);
-//     // }
-
-//     return 0; 
 }
-
-// vim: et:ts=4:sw=4
