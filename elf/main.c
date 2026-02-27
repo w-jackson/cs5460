@@ -336,7 +336,7 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(funcname, "linear_transform") == 0) {
         linear_transform = get_sm(syms, strtab, num_syms, funcname, min_vaddr);
         ret = linear_transform(5);
-        printf("linear_transform:%d\n", ret);
+        printf("linear_transform'd to :%d\n", ret);
     }
 
     return 0; 
