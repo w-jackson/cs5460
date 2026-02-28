@@ -253,14 +253,6 @@ int main(int argc, char* argv[]) {
     }
     free(phs);
 
-    // uintptr_t entry_off = elf.e_entry - min_vaddr;
-    // void *entry_point = (uint8_t *)load_base + entry_off;
-    // if (entry_point) {
-    //         add = entry_point;
-    //         ret = add(1, 2);
-    //         printf("add:%d\n", ret);
-    // }
-    // return 0; 
     // ########################################################### 
         // PERFORM RELOCATION BELOW (NEEDED FOR elf1.c)
         // Below sections can be commented out for Part 1, as no relocations are applied 
@@ -314,10 +306,10 @@ int main(int argc, char* argv[]) {
             int sym_i = ELF64_R_SYM(relas[j].r_info);
             if (type == R_X86_64_RELATIVE) {
                 // Apply relocations
-                uint64_t *va = (uint64_t *)((uint8_t *)load_base + (relas[j].r_offset - min_vaddr));
+                uint64_t *a_ptr = (uint64_t *)((uint8_t *)load_base + (relas[j].r_offset - min_vaddr));
                 int64_t addend = relas[j].r_addend;
-                int64_t new = addend + delta;
-                *va = new;
+                uint64_t new_a = addend + delta;
+                *a_ptr = new_a;
             }
         }
         free(relas);
