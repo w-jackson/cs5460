@@ -8,6 +8,9 @@
 # Binaries 
 *.o
 *.out
+*.bin
+*.d
+*/build
 
 # Test files
 test.txt
