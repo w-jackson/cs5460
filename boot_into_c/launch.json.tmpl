@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to QEMU",
+      "type": "gdb",
+      "request": "attach",
+      "gdbpath": "__GDB_PATH__",
+      "executable": "${workspaceRoot}/build/kernel.bin",
+      "target": "__GDB_TARGET__",
+      "remote": true,
+      "cwd": "${workspaceRoot}",
+      "debugger_args": [
+        "-nx", // don't auto-load .gdbinit
+      ],
+      "stopAtConnect": true,
+      "autorun": [
+        "set substitute-path /root .",
+        "source .gdbinit.vscode",
+        "echo Continue with 'c' or 'continue'",
+      ],
+    }
+  ]
+}
