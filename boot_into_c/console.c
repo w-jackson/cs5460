@@ -34,18 +34,21 @@ void vga_clear(void)
 
 void vga_putc(int c)
 {
+  if(vga_pos >= VGA_ROWS * VGA_COLS) // Stops writing once 25 lines are full
+    return;
+
   if(c == '\n') {
     vga_pos += VGA_COLS - (vga_pos % VGA_COLS);
   } else {
     vga[vga_pos] = (0x07 << 8) | c;
     vga_pos++;
   }
-  if(vga_pos >= VGA_ROWS * VGA_COLS) // If the end is reached, clear and wrap around
-    vga_clear();
 }
 
 void uartinit(void)
 {
+  vga_clear();
+
   // Turn off the FIFO
   outb(COM1+2, 0);
 
