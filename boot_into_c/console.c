@@ -1,6 +1,11 @@
 #define COM1    0x3f8
+#define VGA_ADDR  0xB8000
+#define VGA_COLS 80
+#define VGA_ROWS 25
 
 static int uart;    // is there a uart?
+static unsigned short *vga = (unsigned short *)VGA_ADDR;
+static int vga_pos = 0;
 
 void microdelay(unsigned long us) {
 
@@ -19,9 +24,28 @@ static inline void outb(unsigned short port, unsigned char data)
     asm volatile("out %0,%1" : : "a" (data), "d" (port));
 }
 
+void vga_clear(void)
+{
+  int i;
+  for(i = 0; i < VGA_ROWS * VGA_COLS; i++)
+    vga[i] = (0x07 << 8) | ' ';
+  vga_pos = 0;
+}
+
+void vga_putc(int c)
+{
+  if(c == '\n') {
+    vga_pos += VGA_COLS - (vga_pos % VGA_COLS);
+  } else {
+    vga[vga_pos] = (0x07 << 8) | c;
+    vga_pos++;
+  }
+  if(vga_pos >= VGA_ROWS * VGA_COLS) // If the end is reached, clear and wrap around
+    vga_clear();
+}
+
 void uartinit(void)
 {
-
   // Turn off the FIFO
   outb(COM1+2, 0);
 
@@ -67,5 +91,6 @@ void printk(char *str)
 
     for(i = 0; (c = str[i]) != 0; i++){
         uartputc(c);
+        vga_putc(c);
     }
 }
